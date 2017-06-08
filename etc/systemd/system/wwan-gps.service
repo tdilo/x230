@@ -1,0 +1,44 @@
+# This unit enables and disables the GPS receiver of the Ericsson H5321 gw WWAN modem.
+# To run in sync with gpsd, 'systemctl enable' this unit.
+#
+# Requires socat to keep the serial port of the modem providing the NMEA data stream opened
+# while gpsd is still starting up. Without this hack, operation is flakey at best.
+#
+# Start gpsd with '-b -n' options on device /dev/gps.
+#
+[Unit]
+Description=Ericsson H5321 gw GPS hardware activation
+Before=gpsd.service
+PartOf=gpsd.service
+
+[Service]
+Type=simple
+
+# Sometimes, the modem hangs or becomes unresponsive.
+TimeoutSec=10
+
+User=root
+Group=uucp
+
+Environment='CDEV=/dev/ttyACM1' 'NDEV=/dev/ttyACM2' 'CHATOPTS='
+# Turn on power. This does not work while the modem is disabled with rfkill.
+ExecStartPre=/usr/bin/bash -c '/usr/sbin/chat $CHATOPTS "" "AT+CFUN=1" "OK" > $CDEV < $CDEV'
+
+# Enable GPS unit, 1 second update interval, with DGPS.
+ExecStartPre=/usr/bin/bash -c '/usr/sbin/chat $CHATOPTS "" "AT*E2GPSCTL=1,1,1" "OK" > $CDEV < $CDEV'
+
+# Turn on NMEA on ttyACM2; On first invocation, this returns OK, but once enabled, only NMEA data is sent.
+# Therefore listen for some NMEA sentence, which always works.
+ExecStartPost=/usr/bin/bash -c '/usr/sbin/chat $CHATOPTS "" "AT*E2GPSNPD" "GPGGA" > $NDEV < $NDEV'
+
+# When ttyACM2 is closed, the NMEA data flow stops. Use socat to open the tty early and keep it opened.
+# Configure gpsd to use /dev/gps instead.
+SuccessExitStatus=143
+ExecStart=/usr/bin/socat PTY,link=/dev/gps,rawer $NDEV
+
+# Turn off GPS reception
+ExecStopPost=/usr/bin/bash -c '/usr/sbin/chat $CHATOPTS "" "AT*E2GPSCTL=0,1,1" "OK" > $CDEV < $CDEV'
+
+[Install]
+WantedBy=gpsd.service
+
