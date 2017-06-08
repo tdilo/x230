@@ -1,0 +1,13 @@
+# Apply all power-saving options powertop has to offer on boot.
+#
+# Even with SATA ALPM, no data loss so far on a KINGSTON SA400S37240G.
+#
+[Unit]
+Description=Powertop auto tuning
+
+[Service]
+ExecStart=/usr/bin/powertop --auto-tune
+RemainAfterExit=true
+
+[Install]
+WantedBy=multi-user.target
