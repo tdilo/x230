@@ -24,8 +24,9 @@ Environment='CDEV=/dev/ttyACM1' 'NDEV=/dev/ttyACM2' 'CHATOPTS='
 # Turn on power. This does not work while the modem is disabled with rfkill.
 ExecStartPre=/usr/bin/bash -c '/usr/sbin/chat $CHATOPTS "" "AT+CFUN=1" "OK" > $CDEV < $CDEV'
 
-# Enable GPS unit, 1 second update interval, with DGPS.
-ExecStartPre=/usr/bin/bash -c '/usr/sbin/chat $CHATOPTS "" "AT*E2GPSCTL=1,1,1" "OK" > $CDEV < $CDEV'
+# Enable GPS unit, 1 second update interval, without DGPS.
+# When DGPS is enabled with 1, binary data is sent as well on ttyACM2, confusing GPSD.
+ExecStartPre=/usr/bin/bash -c '/usr/sbin/chat $CHATOPTS "" "AT*E2GPSCTL=1,1,0" "OK" > $CDEV < $CDEV'
 
 # Turn on NMEA on ttyACM2; On first invocation, this returns OK, but once enabled, only NMEA data is sent.
 # Therefore listen for some NMEA sentence, which always works.
@@ -37,7 +38,7 @@ SuccessExitStatus=143
 ExecStart=/usr/bin/socat PTY,link=/dev/gps,rawer $NDEV
 
 # Turn off GPS reception
-ExecStopPost=/usr/bin/bash -c '/usr/sbin/chat $CHATOPTS "" "AT*E2GPSCTL=0,1,1" "OK" > $CDEV < $CDEV'
+ExecStopPost=/usr/bin/bash -c '/usr/sbin/chat $CHATOPTS "" "AT*E2GPSCTL=0,0,0" "OK" > $CDEV < $CDEV'
 
 [Install]
 WantedBy=gpsd.service
